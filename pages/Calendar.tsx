@@ -250,9 +250,10 @@ const Calendar: React.FC = () => {
         const stopLookup = new Map(routePlan.stops.map(stop => [stop.jobId, stop]));
         const nextStops = orderedStops
             .map(item => {
-                const existing = stopLookup.get(item.jobId);
-                if (!existing) return null;
-                return { ...(existing as RouteStop), order: item.order } as RouteStop;
+                const existingStop = stopLookup.get(item.jobId);
+                if (!existingStop) return null;
+                const stop = existingStop as RouteStop;
+                return { ...stop, order: item.order } as RouteStop;
             })
             .filter(Boolean) as RouteStop[];
 
