@@ -702,5 +702,5 @@ export const aiCore = {
   chat,
   refresh,
   getContext,
-  isInitialized
+  isInitialized,
 };

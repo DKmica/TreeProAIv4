@@ -13,6 +13,7 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Added explicit declarations so TS recognizes class props/state
   declare props: Readonly<ErrorBoundaryProps>;
   declare state: Readonly<ErrorBoundaryState>;
 
@@ -30,7 +31,6 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 
   handleReset = (): void => {
-    this.setState({ hasError: false, error: undefined });
     if (typeof window !== 'undefined') {
       window.location.reload();
     }
