@@ -6,9 +6,9 @@ const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const envAnon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 // Fallbacks use your project ID and anon key so local dev works if envs aren't set.
-const FALLBACK_URL = 'https://mcibncgdkiuqsfwibdtb.supabase.co';
+const FALLBACK_URL = 'https://ursxprrsqfvdcbqzdxcy.supabase.co';
 const FALLBACK_ANON =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1jaWJuY2dla2l1cXNmd2liZHRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1MTM1MjMsImV4cCI6MjA3ODA4OTUyM30.TDGp4yOAkuqBHoNBYiWXdJu7crRi4cMF0PMP5eu-1Ss';
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyc3hwcnJzcWZ2ZGNicXpkeGN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5NjU1NDIsImV4cCI6MjA4MTU0MTU0Mn0.88WagU-morT4ne_SoDsHlX6Rq8G_Gr4ojijp6oNUCLM';
 
 const SUPABASE_URL = (envUrl && envUrl.trim()) || FALLBACK_URL;
 const SUPABASE_ANON_KEY = (envAnon && envAnon.trim()) || FALLBACK_ANON;
