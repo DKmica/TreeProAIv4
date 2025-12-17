@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '../services/apiService';
-import { aiCore } from '../services/gemini/aiCore';
+import aiCore from '../services/gemini/aiCore';
 
 interface AppDataContextType {
   isAiCoreInitialized: boolean;

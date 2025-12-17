@@ -702,5 +702,7 @@ export const aiCore = {
   chat,
   refresh,
   getContext,
-  isInitialized
+  isInitialized,
 };
+
+export default aiCore;

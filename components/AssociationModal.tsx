@@ -42,7 +42,8 @@ const AssociationModal: React.FC<AssociationModalProps> = ({ isOpen, onClose, de
       const client = await clientService.create({
         firstName,
         lastName,
-        phone,
+        primaryEmail: email,
+        primaryPhone: phone,
       });
 
       const property = await propertyService.createForClient(client.id, {

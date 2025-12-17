@@ -206,7 +206,9 @@ export const workflowService = {
         total: response.data?.length ?? 0,
         page: params?.page ?? 1,
         pageSize: params?.pageSize ?? 20,
-        totalPages: 1
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
       }
     };
   },
