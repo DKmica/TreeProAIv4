@@ -10927,23 +10927,40 @@ resources.forEach(resource => {
   setupCrudEndpoints(apiRouter, resource);
 });
 
-async function startServer() {
-  await initStripe();
+let appInitialized = false;
+let appInitPromise = null;
+let staticMounted = false;
 
-  await setupAuth(app);
-
-  mountApiRoutes(app, apiRouter);
-  app.use('/api', notFoundHandler);
-  app.use(errorHandler);
-
-  // Serve static frontend files in production
-  // In development, frontend is served separately by Vite on port 5000
-  app.use(express.static(path.join(__dirname, 'public')));
+async function initializeApp({ includeStatic = true } = {}) {
+  if (!appInitPromise) {
+    appInitPromise = (async () => {
+      await initStripe();
+      await setupAuth(app);
   
-  // SPA fallback: serve index.html for all non-API routes
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-  });
+      mountApiRoutes(app, apiRouter);
+      app.use('/api', notFoundHandler);
+      app.use(errorHandler);
+      appInitialized = true;
+    })().catch(err => {
+      appInitPromise = null;
+      throw err;
+    });
+  }
+
+  await appInitPromise;
+
+  if (includeStatic && !staticMounted) {
+    // In serverless/Vercel we serve static assets separately, so allow skipping
+    app.use(express.static(path.join(__dirname, 'public')));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    });
+    staticMounted = true;
+  }
+}
+
+async function startServer() {
+  await initializeApp({ includeStatic: true });
 
   server = app.listen(PORT, HOST, async () => {
     console.log(`Backend server running on http://${HOST}:${PORT}`);
@@ -11038,6 +11055,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // Export for testing
 module.exports = {
   app,
+  initializeApp,
   startServer,
   stopServer: shutdown,
   getServer: () => server

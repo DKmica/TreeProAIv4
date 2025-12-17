@@ -36,8 +36,14 @@ This populates form templates and demo records so the UI workflows and forms ren
 TreePro AI ships as a Vite React SPA plus an Express API. The recommended deployment is **frontend on Vercel** and **API on Vercel Serverless Functions** using the existing Express server.
 
 ### Project layout for Vercel
+- The repo now includes `vercel.json` and `backend/vercel.js`, which route `/api/*` to the Express app as a serverless function and serve the built Vite assets statically from `dist/`.
 - Keep the monorepo as-is. Vercel can build the frontend from the root and expose the backend via a serverless function entry point that imports `backend/server.js`.
-- Add a `vercel.json` (example below) to wire the API and static build.
+- If you customize routing, keep the SPA catch-all so client-side routes (e.g., `/admin-setup`) resolve to `dist/index.html`.
+
+### Quick auth checklist for Vercel + Supabase
+- Set `DATABASE_URL` to your Supabase Postgres connection string (use the non-pooled string with `sslmode=require` so schema/bootstrap can run).
+- Set `SESSION_SECRET` to a strong random string so login cookies remain valid across serverless invocations.
+- Set `CORS_ORIGINS` to your Vercel domain if you serve the API cross-origin; for same-origin `/api` calls you can omit it.
 
 Example `vercel.json`:
 ```json

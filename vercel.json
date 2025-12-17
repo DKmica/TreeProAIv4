@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "installCommand": "pnpm install --frozen-lockfile && cd backend && pnpm install",
+  "buildCommand": "pnpm run build",
+  "builds": [
+    { "src": "backend/vercel.js", "use": "@vercel/node" },
+    { "src": "dist/**/*", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/backend/vercel.js" },
+    { "src": "/(.*)", "dest": "/dist/$1" },
+    { "src": "/.*", "dest": "/dist/index.html" }
+  ]
+}
