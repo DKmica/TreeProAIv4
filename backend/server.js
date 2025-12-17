@@ -19,7 +19,6 @@ const reminderService = require('./services/reminderService');
 const { initializeAutomationEngine, shutdownAutomationEngine, emitBusinessEvent } = require('./services/automation');
 const { generateJobNumber } = require('./services/numberService');
 const { getStripeSecretKey, getStripeWebhookSecret } = require('./stripeClient');
-const leadsRouter = require('./routes/leads');
 const { mountApiRoutes } = require('./routes');
 const { camelToSnake, snakeToCamel, sanitizeUUID } = require('./utils/formatters');
 const userManagement = require('./controllers/userManagementController');
@@ -10930,16 +10929,9 @@ resources.forEach(resource => {
 
 async function startServer() {
   await initStripe();
-  
-  await setupAuth(app);
-  
-  mountApiRoutes(app, apiRouter);
-  app.use('/api', notFoundHandler);
-  app.use(errorHandler);
 
-  app.use('/api', leadsRouter);
-  app.use('/api', apiRouter);
-  
+  await setupAuth(app);
+
   mountApiRoutes(app, apiRouter);
   app.use('/api', notFoundHandler);
   app.use(errorHandler);
