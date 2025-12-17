@@ -96,4 +96,76 @@ if (process.env.NODE_ENV !== 'production' || String(process.env.ENABLE_DEV_AUTH_
   });
 }
 
+// NEW: Bootstrap admin endpoint to create the first Owner (admin) account
+router.post('/auth/bootstrap-admin', async (req, res) => {
+  try {
+    const allowBeyondFirst = String(process.env.ENABLE_ADMIN_BOOTSTRAP || '').toLowerCase() === 'true';
+
+    // Check how many users exist
+    const countRes = await db.query('SELECT COUNT(*)::int AS count FROM users');
+    const existingCount = countRes.rows[0]?.count ?? 0;
+
+    if (existingCount > 0 && !allowBeyondFirst) {
+      return res.status(403).json({
+        message: 'Admin bootstrap is disabled because users already exist. Set ENABLE_ADMIN_BOOTSTRAP=true to allow.'
+      });
+    }
+
+    const { email, password, firstName = null, lastName = null } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Upsert user as approved
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+
+    let userId;
+    if (existing.rows.length === 0) {
+      const insert = await db.query(
+        `INSERT INTO users (id, email, first_name, last_name, password_hash, status, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'approved', NOW(), NOW())
+         RETURNING id, email, first_name, last_name, status, created_at, updated_at`,
+        [email, firstName, lastName, passwordHash]
+      );
+      userId = insert.rows[0].id;
+    } else {
+      userId = existing.rows[0].id;
+      await db.query(
+        `UPDATE users 
+         SET password_hash = $1, status = 'approved', updated_at = NOW() 
+         WHERE id = $2`,
+        [passwordHash, userId]
+      );
+    }
+
+    // Ensure Owner role
+    await db.query(
+      `INSERT INTO user_roles (id, user_id, role, created_at)
+       VALUES (gen_random_uuid(), $1, 'owner', NOW())
+       ON CONFLICT DO NOTHING`,
+      [userId]
+    );
+
+    const userResult = await db.query(
+      `SELECT id, email, first_name, last_name, status, created_at, updated_at FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Owner (admin) account is ready. You can sign in now.',
+      user: userResult.rows[0],
+      assignedRole: 'owner'
+    });
+  } catch (err) {
+    console.error('bootstrap-admin error:', err);
+    return res.status(500).json({ message: 'Failed to bootstrap admin' });
+  }
+});
+
 module.exports = router;

@@ -145,6 +145,14 @@ const Login: React.FC = () => {
             <p className="text-xs text-slate-500 mt-2">
               If sign-in fails with "Invalid user", use this to create an owner account with the email/password above.
             </p>
+            <div className="mt-3 text-center">
+              <a
+                href="/admin-setup"
+                className="text-sm text-cyan-700 hover:text-cyan-800 underline"
+              >
+                Set up admin account instead
+              </a>
+            </div>
           </div>
         </form>
       </div>
