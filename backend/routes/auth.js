@@ -106,10 +106,16 @@ router.post('/auth/bootstrap-admin', async (req, res) => {
     const existingCount = countRes.rows[0]?.count ?? 0;
 
     // New: allow bootstrap if there is no existing Owner role
-    const ownerCheck = await db.query(`SELECT 1 FROM user_roles WHERE role = 'owner' LIMIT 1`);
-    const hasOwner = ownerCheck.rows.length > 0;
+    const ownerCheck = await db.query(
+      `SELECT 1
+       FROM user_roles ur
+       JOIN users u ON u.id = ur.user_id
+       WHERE ur.role = 'owner' AND u.status = 'approved'
+       LIMIT 1`
+    );
+    const hasApprovedOwner = ownerCheck.rows.length > 0;
 
-    if (existingCount > 0 && hasOwner && !allowBeyondFirst) {
+    if (existingCount > 0 && hasApprovedOwner && !allowBeyondFirst) {
       return res.status(403).json({
         message: 'Admin bootstrap is disabled because users already exist. Set ENABLE_ADMIN_BOOTSTRAP=true to allow.'
       });

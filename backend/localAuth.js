@@ -74,16 +74,17 @@ async function ensureCoreAuthSchema() {
 
 function getSession() {
   const PgStore = connectPg(session);
-  const sessionStore = new PgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: true, // allow store to bootstrap the sessions table
-    ttl: SESSION_TTL,
-    tableName: 'sessions'
-  });
+  const sessionSecret = process.env.SESSION_SECRET || 'insecure-dev-secret-change-me';
 
-  return session({
-    secret: process.env.SESSION_SECRET,
-    store: sessionStore,
+  if (!process.env.SESSION_SECRET) {
+    console.warn(
+      '⚠️  SESSION_SECRET is not set. Using a fallback development secret. Please set SESSION_SECRET in production.'
+    );
+  }
+
+  const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
+  const sessionOptions = {
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
@@ -91,7 +92,22 @@ function getSession() {
       secure: process.env.NODE_ENV === 'production',
       maxAge: SESSION_TTL
     }
-  });
+  };
+
+  if (hasDatabaseUrl) {
+    sessionOptions.store = new PgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true, // allow store to bootstrap the sessions table
+      ttl: SESSION_TTL,
+      tableName: 'sessions'
+    });
+  } else {
+    console.warn(
+      '⚠️  DATABASE_URL is not set. Falling back to in-memory sessions. Sessions will reset on restart.'
+    );
+  }
+
+  return session(sessionOptions);
 }
 
 async function findUserByEmail(email) {
@@ -124,7 +140,27 @@ async function getUser(userId) {
   return user;
 }
 
-async function assignDefaultRole(userId, email) {
+async function hasOwnerRole() {
+  const ownerRole = await db.query(
+    `SELECT 1 FROM user_roles WHERE role = 'owner' LIMIT 1`
+  );
+
+  return ownerRole.rows.length > 0;
+}
+
+async function hasApprovedOwner() {
+  const ownerRole = await db.query(
+    `SELECT 1
+     FROM user_roles ur
+     JOIN users u ON u.id = ur.user_id
+     WHERE ur.role = 'owner' AND u.status = 'approved'
+     LIMIT 1`
+  );
+
+  return ownerRole.rows.length > 0;
+}
+
+async function assignDefaultRole(userId, email, { forceOwner = false } = {}) {
   // Copy any pre-registered roles for matching email
   if (email) {
     const preRegistered = await db.query(
@@ -145,8 +181,8 @@ async function assignDefaultRole(userId, email) {
     }
   }
 
-  const existingRoles = await db.query('SELECT COUNT(*) as count FROM user_roles');
-  const defaultRole = existingRoles.rows[0].count === '0' ? 'owner' : 'crew_member';
+  const hasOwner = forceOwner ? false : await hasOwnerRole();
+  const defaultRole = hasOwner ? 'crew_member' : 'owner';
   await db.query(
     `INSERT INTO user_roles (user_id, role) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
     [userId, defaultRole]
@@ -155,11 +191,13 @@ async function assignDefaultRole(userId, email) {
 
 async function createUser({ email, password, firstName, lastName }) {
   const passwordHash = await bcrypt.hash(password, 12);
-  
+
   // Check if this is the first user (auto-approve as owner)
   const existingUsers = await db.query('SELECT COUNT(*) as count FROM users');
   const isFirstUser = existingUsers.rows[0].count === '0';
-  const status = isFirstUser ? 'approved' : 'pending';
+  const approvedOwnerExists = await hasApprovedOwner();
+  const shouldAutoApprove = isFirstUser || !approvedOwnerExists;
+  const status = shouldAutoApprove ? 'approved' : 'pending';
   
   const result = await db.query(
     `INSERT INTO users (id, email, first_name, last_name, password_hash, status, created_at, updated_at)
@@ -170,9 +208,9 @@ async function createUser({ email, password, firstName, lastName }) {
 
   const user = result.rows[0];
   
-  // Only assign role if user is auto-approved (first user)
-  if (isFirstUser) {
-    await assignDefaultRole(user.id, user.email);
+  // Only assign role if user is auto-approved (first user or no approved owners)
+  if (shouldAutoApprove) {
+    await assignDefaultRole(user.id, user.email, { forceOwner: !approvedOwnerExists });
   }
   
   return user;
