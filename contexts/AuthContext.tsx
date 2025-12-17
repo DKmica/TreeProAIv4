@@ -95,8 +95,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return true;
     }
     
-    const msg = await response.text();
-    showToast('Sign-in failed', { type: 'error', message: msg || 'Invalid email or password.' });
+    // Try to parse JSON error with a message; fallback to text
+    let errMsg: string | null = null;
+    try {
+      const data = await response.json();
+      errMsg = data?.message || null;
+    } catch {
+      try {
+        errMsg = await response.text();
+      } catch {
+        errMsg = null;
+      }
+    }
+    showToast('Sign-in failed', { type: 'error', message: errMsg || 'Invalid email or password.' });
     return false;
   };
 
@@ -109,15 +120,37 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     if (response.ok) {
-      const userData = await response.json();
-      setUser(userData);
+      const data = await response.json();
+      // When not the first user, backend returns pendingApproval=true and does NOT log in
+      if (data?.pendingApproval) {
+        showToast('Account created; pending approval', {
+          type: 'success',
+          message: 'An administrator will approve your account before you can sign in.'
+        });
+        setUser(null);
+        setIsAuthenticated(false);
+        return false;
+      }
+      // First user (auto-approved) gets a full user object and is logged in
+      setUser(data);
       setIsAuthenticated(true);
       showToast('Account created and signed in', { type: 'success' });
       return true;
     }
     
-    const msg = await response.text();
-    showToast('Sign-up failed', { type: 'error', message: msg || 'Unable to create account.' });
+    // Show server-provided error message if available
+    let errMsg: string | null = null;
+    try {
+      const data = await response.json();
+      errMsg = data?.message || null;
+    } catch {
+      try {
+        errMsg = await response.text();
+      } catch {
+        errMsg = null;
+      }
+    }
+    showToast('Sign-up failed', { type: 'error', message: errMsg || 'Unable to create account.' });
     return false;
   };
 
