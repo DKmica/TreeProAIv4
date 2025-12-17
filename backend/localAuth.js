@@ -8,11 +8,75 @@ const { logLogin } = require('./src/modules/core/auth');
 
 const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
 
+// Ensure core auth schema exists in a fresh DB
+async function ensureCoreAuthSchema() {
+  // Enable UUID generation
+  await db.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
+
+  // Users table
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS public.users (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email TEXT UNIQUE NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      profile_image_url TEXT,
+      password_hash TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // Trigger function to auto-update updated_at
+  await db.query(`
+    CREATE OR REPLACE FUNCTION public.set_updated_at()
+    RETURNS TRIGGER LANGUAGE plpgsql AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$;
+  `);
+
+  await db.query(`DROP TRIGGER IF EXISTS trg_users_updated_at ON public.users;`);
+  await db.query(`
+    CREATE TRIGGER trg_users_updated_at
+    BEFORE UPDATE ON public.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.set_updated_at();
+  `);
+
+  // User roles table
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS public.user_roles (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  // Ensure (user_id, role) is unique
+  await db.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'user_roles_user_id_role_key'
+      ) THEN
+        ALTER TABLE public.user_roles
+        ADD CONSTRAINT user_roles_user_id_role_key UNIQUE (user_id, role);
+      END IF;
+    END $$;
+  `);
+}
+
 function getSession() {
   const PgStore = connectPg(session);
   const sessionStore = new PgStore({
     conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
+    createTableIfMissing: true, // allow store to bootstrap the sessions table
     ttl: SESSION_TTL,
     tableName: 'sessions'
   });
@@ -115,6 +179,9 @@ async function createUser({ email, password, firstName, lastName }) {
 }
 
 async function setupAuth(app) {
+  // Ensure essential tables exist before sessions and auth run
+  await ensureCoreAuthSchema();
+
   app.set('trust proxy', 1);
   app.use(getSession());
   app.use(passport.initialize());
