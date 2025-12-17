@@ -15,7 +15,7 @@ import {
   CogIcon,
   DocumentTextIcon,
   ClipboardDocumentListIcon
-} from '../components/icons';
+} from '../../../components/icons';
 
 export const navigationConfig = [
   {

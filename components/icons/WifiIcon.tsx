@@ -1,5 +1,8 @@
 import React from 'react';
-import { IconProps } from './types';
+
+export interface IconProps {
+  className?: string;
+}
 
 const WifiIcon: React.FC<IconProps> = ({ className }) => (
   <svg

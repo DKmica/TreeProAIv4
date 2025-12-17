@@ -18,8 +18,16 @@ describe('Login', () => {
       user: null,
       userEmail: null,
       userRole: null,
+      userRoles: [],
       userName: null,
+      hasRole: vi.fn(),
+      hasAnyRole: vi.fn(),
+      isOwnerOrAdmin: false,
+      isManager: false,
+      isFieldCrew: false,
+      isCustomer: false,
       login: mockLogin,
+      signup: vi.fn(),
       logout: vi.fn(),
     });
   });

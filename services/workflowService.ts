@@ -289,9 +289,11 @@ export const automationLogService = {
       data: response.data ?? [],
       pagination: response.pagination || {
         total: response.data?.length ?? 0,
-        page: params?.page ?? 1,
-        pageSize: params?.pageSize ?? 20,
-        totalPages: 1
+        page: 1,
+        pageSize: 10,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
       }
     };
   },

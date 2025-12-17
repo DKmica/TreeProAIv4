@@ -30,6 +30,7 @@ describe('QuoteEditor', () => {
       primaryPhone: '555-1234',
       clientType: 'residential',
       status: 'active',
+      clientCategory: 'active_customer',
       paymentTerms: 'Net 30',
       taxExempt: false,
       lifetimeValue: 0,

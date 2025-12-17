@@ -205,7 +205,7 @@ export const mockJobs: Job[] = [
       id: 'job2',
       quoteId: 'quote1',
       customerName: 'John Doe',
-      status: 'In Progress',
+      status: 'in_progress',
       scheduledDate: new Date().toISOString().split('T')[0],
       assignedCrew: ['emp1'],
       photos: [],
@@ -219,7 +219,7 @@ export const mockJobs: Job[] = [
       id: 'job3',
       quoteId: 'quote3',
       customerName: 'Sarah Wilson',
-      status: 'Unscheduled',
+      status: 'scheduled',
       scheduledDate: '',
       assignedCrew: ['emp1', 'emp3'],
       photos: [],
@@ -258,6 +258,9 @@ export const mockInvoices: Invoice[] = [
       createdAt: '2023-11-05T08:00:00Z',
       updatedAt: '2023-11-15T14:25:00Z',
       notes: 'Thank you for your business!',
+      billingType: 'single',
+      billingSequence: 1,
+      contractTotal: 909.5,
     },
     {
       id: 'inv2',
@@ -282,6 +285,9 @@ export const mockInvoices: Invoice[] = [
       customerEmail: 'john.doe@example.com',
       amount: 1284,
       createdAt: '2023-12-01T08:30:00Z',
+      billingType: 'single',
+      billingSequence: 1,
+      contractTotal: 1284,
     },
 ];
 

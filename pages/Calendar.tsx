@@ -252,7 +252,7 @@ const Calendar: React.FC = () => {
             .map(item => {
                 const existing = stopLookup.get(item.jobId);
                 if (!existing) return null;
-                return { ...existing, order: item.order } as RouteStop;
+                return { ...existing, order: item.order };
             })
             .filter(Boolean) as RouteStop[];
 

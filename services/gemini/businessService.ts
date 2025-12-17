@@ -86,7 +86,7 @@ export const getAiCoreInsights = async (
 
     const today = new Date().toISOString().split('T')[0];
     
-    const totalRevenue = jobs.filter(j => j.status === 'Completed').reduce((sum, job) => {
+    const totalRevenue = jobs.filter(j => j.status === 'completed').reduce((sum, job) => {
         const quote = quotes.find(q => q.id === job.quoteId);
         if (quote) {
             const total = quote.lineItems.filter(li => li.selected).reduce((s, li) => s + li.price, 0) + (quote.stumpGrindingPrice || 0);

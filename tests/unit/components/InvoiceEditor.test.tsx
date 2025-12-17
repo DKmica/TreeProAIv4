@@ -88,6 +88,9 @@ describe('InvoiceEditor', () => {
       status: 'Draft',
       createdAt: '2025-01-01',
       updatedAt: '2025-01-01',
+      billingType: 'single',
+      billingSequence: 1,
+      contractTotal: 540,
     };
 
     render(
@@ -180,6 +183,9 @@ describe('InvoiceEditor', () => {
       status: 'Draft',
       createdAt: '2025-01-15',
       updatedAt: '2025-01-15',
+      billingType: 'single',
+      billingSequence: 1,
+      contractTotal: 200,
     };
 
     vi.mocked(invoiceService.create).mockResolvedValue(mockCreatedInvoice);

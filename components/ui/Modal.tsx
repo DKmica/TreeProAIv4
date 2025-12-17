@@ -48,7 +48,10 @@ const Modal: React.FC<ModalProps> = ({
   const getFocusableElements = useCallback(() => {
     if (!modalRef.current) return [];
     return Array.from(modalRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_ELEMENTS))
-      .filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null);
+      .filter((el): el is HTMLElement => {
+        const element = el as HTMLElement;
+        return !element.hasAttribute('disabled') && element.offsetParent !== null;
+      });
   }, []);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -164,12 +167,12 @@ const Modal: React.FC<ModalProps> = ({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="
+                className={`
                   p-1.5 -mr-1.5 -mt-1.5
                   text-brand-gray-400 hover:text-white
                   rounded-lg hover:bg-brand-gray-800
                   transition-colors
-                "
+                `}
                 aria-label="Close modal"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
