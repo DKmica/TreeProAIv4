@@ -409,7 +409,6 @@ Before each job, assess:
 `;
 
 const functionDeclarations: FunctionDeclaration[] = [
-  // ... existing code ...
   {
     name: 'updateJobStatus',
     description: 'Update the status of a job.',
@@ -426,7 +425,6 @@ const functionDeclarations: FunctionDeclaration[] = [
       required: ['jobId', 'status']
     }
   },
-  // ... existing code ...
   {
     name: 'getJobsByStatus',
     description: 'Retrieve all jobs filtered by status.',
@@ -441,8 +439,7 @@ const functionDeclarations: FunctionDeclaration[] = [
       },
       required: ['status']
     }
-  },
-  // ... existing code ...
+  }
 ];
 
 async function checkRateLimit(): Promise<void> {
@@ -559,7 +556,6 @@ async function executeFunctionCall(name: string, args: any): Promise<any> {
 
   try {
     switch (name) {
-      // ... existing code ...
       case 'updateJobStatus':
         const updatedJob = await jobService.update(args.jobId, { status: args.status.toLowerCase() });
         const jobIndex = businessContext.jobs.findIndex(j => j.id === args.jobId);
@@ -584,7 +580,7 @@ async function initialize(initialData: BusinessContext): Promise<void> {
     model: 'gemini-2.0-flash',
     config: {
       systemInstruction: getSystemInstruction(),
-      tools: [{ functionDeclarations }]
+      tools: [{ functionDeclarations: functionDeclarations }]
     }
   });
   console.log('✅ AI Core initialized with initial business context');
@@ -621,7 +617,7 @@ async function chat(message: string, history: ChatMessage[] = []): Promise<{ res
       model: 'gemini-2.0-flash',
       config: {
         systemInstruction: getSystemInstruction(),
-        tools: [{ functionDeclarations }]
+        tools: [{ functionDeclarations: functionDeclarations }]
       }
     });
   }
@@ -682,7 +678,7 @@ async function refresh(newData: BusinessContext): Promise<void> {
       model: 'gemini-2.0-flash',
       config: {
         systemInstruction: getSystemInstruction(),
-        tools: [{ functionDeclarations }]
+        tools: [{ functionDeclarations: functionDeclarations }]
       }
     });
   }
