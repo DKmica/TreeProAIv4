@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import { showToast } from '../components/ui/Toast';
 
 interface User {
   id: string;
@@ -90,9 +91,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userData = await response.json();
       setUser(userData);
       setIsAuthenticated(true);
+      showToast('Signed in successfully', { type: 'success' });
       return true;
     }
-
+    
+    const msg = await response.text();
+    showToast('Sign-in failed', { type: 'error', message: msg || 'Invalid email or password.' });
     return false;
   };
 
@@ -108,9 +112,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const userData = await response.json();
       setUser(userData);
       setIsAuthenticated(true);
+      showToast('Account created and signed in', { type: 'success' });
       return true;
     }
-
+    
+    const msg = await response.text();
+    showToast('Sign-up failed', { type: 'error', message: msg || 'Unable to create account.' });
     return false;
   };
 

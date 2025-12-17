@@ -11,6 +11,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -47,9 +48,14 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
     const success = await login(email, password);
+    setSubmitting(false);
     if (success) {
       navigate('/');
+    } else {
+      showToast('Sign-in failed', { type: 'error', message: 'Please check your email and password.' });
     }
   };
 
@@ -64,7 +70,7 @@ const Login: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 caret-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="you@example.com"
               autoComplete="email"
               required
@@ -76,7 +82,7 @@ const Login: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 caret-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               placeholder="••••••••"
               autoComplete="current-password"
               required
@@ -89,9 +95,10 @@ const Login: React.FC = () => {
           </div>
           <button
             type="submit"
-            className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-cyan-600 text-white font-medium shadow hover:bg-cyan-700 transition"
+            disabled={submitting}
+            className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-cyan-600 text-white font-medium shadow hover:bg-cyan-700 disabled:opacity-60 transition"
           >
-            Sign in
+            {submitting ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
