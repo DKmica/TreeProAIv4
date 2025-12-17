@@ -12,6 +12,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const seededRef = useRef(false);
 
   useEffect(() => {
@@ -59,6 +60,38 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleCreateOwnerAndSignin = async () => {
+    if (seeding || submitting) return;
+    if (!email || !password) {
+      showToast('Enter email and password first', { type: 'error', message: 'Please provide email and password to create your owner account.' });
+      return;
+    }
+    setSeeding(true);
+    try {
+      const res = await fetch('/api/auth/dev-create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, role: 'owner' })
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Failed to create owner');
+      }
+      showToast('Owner account created/approved', { type: 'success' });
+      // Auto-sign in with the just-created credentials
+      const ok = await login(email, password);
+      if (ok) {
+        navigate('/');
+      } else {
+        showToast('Sign-in failed after creating account', { type: 'error' });
+      }
+    } catch (err) {
+      showToast('Unable to create owner', { type: 'error', message: 'The server may not allow dev seeding. Ask an admin to enable it.' });
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
       <div className="w-full max-w-md bg-white shadow rounded-lg p-6 border border-slate-200">
@@ -100,6 +133,19 @@ const Login: React.FC = () => {
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={handleCreateOwnerAndSignin}
+              disabled={seeding || submitting}
+              className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-60 transition"
+            >
+              {seeding ? 'Creating account…' : 'Create owner and sign in'}
+            </button>
+            <p className="text-xs text-slate-500 mt-2">
+              If sign-in fails with "Invalid user", use this to create an owner account with the email/password above.
+            </p>
+          </div>
         </form>
       </div>
     </div>

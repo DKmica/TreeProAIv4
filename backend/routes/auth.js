@@ -31,7 +31,8 @@ router.get('/auth/user', isAuthenticated, async (req, res) => {
 });
 
 // Dev-only endpoint to create/approve a user
-if (process.env.NODE_ENV !== 'production') {
+// Also allow enabling in production-like environments via ENABLE_DEV_AUTH_SEED=true
+if (process.env.NODE_ENV !== 'production' || String(process.env.ENABLE_DEV_AUTH_SEED).toLowerCase() === 'true') {
   router.post('/auth/dev-create-user', async (req, res) => {
     try {
       const { email, password, firstName = null, lastName = null, role = 'owner' } = req.body || {};
