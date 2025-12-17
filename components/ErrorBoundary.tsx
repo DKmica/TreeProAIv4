@@ -13,7 +13,14 @@ interface ErrorBoundaryState {
 }
 
 class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+  // Ensure TS recognizes these base class members
+  declare props: Readonly<ErrorBoundaryProps>;
+  setState!: React.Component<ErrorBoundaryProps, ErrorBoundaryState>['setState'];
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };

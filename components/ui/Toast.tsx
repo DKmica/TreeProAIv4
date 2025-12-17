@@ -30,6 +30,26 @@ export const useToast = (): ToastContextType => {
   return context;
 };
 
+// Global bridge so showToast works outside React components
+type ShowToastOptions = { type?: ToastType; message?: string; duration?: number };
+let globalAddToast: ((toast: Omit<ToastMessage, 'id'>) => void) | null = null;
+
+export function showToast(title: string, opts: ShowToastOptions = {}): void {
+  const toast: Omit<ToastMessage, 'id'> = {
+    type: opts.type ?? 'info',
+    title,
+    message: opts.message,
+    duration: opts.duration
+  };
+  if (globalAddToast) {
+    globalAddToast(toast);
+  } else {
+    // Fallback: log so calls don't throw if provider isn't mounted yet
+    // eslint-disable-next-line no-console
+    console.log(`[toast:${toast.type}] ${toast.title}${toast.message ? ` - ${toast.message}` : ''}`);
+  }
+}
+
 const toastIcons: Record<ToastType, React.ReactNode> = {
   success: (
     <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
@@ -162,6 +182,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const info = useCallback((title: string, message?: string) => {
     addToast({ type: 'info', title, message });
+  }, [addToast]);
+
+  // Wire the global showToast to this provider instance
+  useEffect(() => {
+    globalAddToast = addToast;
+    return () => {
+      if (globalAddToast === addToast) globalAddToast = null;
+    };
   }, [addToast]);
 
   return (
