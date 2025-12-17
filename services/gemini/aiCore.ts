@@ -704,5 +704,3 @@ export const aiCore = {
   getContext,
   isInitialized
 };
-
-export default aiCore;

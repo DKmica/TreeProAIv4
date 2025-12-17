@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatMessage } from '../types';
-import aiCore from '../services/gemini/aiCore';
+import { aiCore } from '../services/gemini/aiCore';
 
 interface UseAICoreProps {
   pageContext: string;
