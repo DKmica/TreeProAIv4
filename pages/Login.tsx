@@ -1,163 +1,83 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { showToast } from '../components/ui/Toast';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../src/integrations/supabase/client';
+import { Button, FormInput } from '../components/ui';
 
-const DEV_EMAIL = 'dakoenig4@gmail.com';
-const DEV_PASSWORD = '12Tree45';
-
-const Login: React.FC = () => {
-  const { user, login } = useAuth();
+export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [seeding, setSeeding] = useState(false);
-  const seededRef = useRef(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
-  useEffect(() => {
-    if (import.meta.env.PROD) return;
-    if (seededRef.current) return;
-    seededRef.current = true;
-
-    // Dev-only: attempt to create or update the user so we can sign in
-    fetch('/api/auth/dev-create-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: DEV_EMAIL, password: DEV_PASSWORD, role: 'owner' })
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const msg = await res.text();
-          throw new Error(msg || 'Failed to seed dev user');
-        }
-        return res.json();
-      })
-      .then(() => {
-        setEmail(DEV_EMAIL);
-        setPassword(DEV_PASSWORD);
-        showToast('Dev user is ready. You can sign in now.', { type: 'success' });
-      })
-      .catch(() => {
-        // Non-fatal in dev
-      });
-  }, []);
-
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitting) return;
-    setSubmitting(true);
-    const success = await login(email, password);
-    setSubmitting(false);
-    if (success) {
-      navigate('/');
-    } else {
-      showToast('Sign-in failed', { type: 'error', message: 'Please check your email and password.' });
-    }
-  };
+    setLoading(true);
+    setError(null);
 
-  const handleCreateOwnerAndSignin = async () => {
-    if (seeding || submitting) return;
-    if (!email || !password) {
-      showToast('Enter email and password first', { type: 'error', message: 'Please provide email and password to create your owner account.' });
-      return;
-    }
-    setSeeding(true);
     try {
-      const res = await fetch('/api/auth/dev-create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role: 'owner' })
-      });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Failed to create owner');
-      }
-      showToast('Owner account created/approved', { type: 'success' });
-      // Auto-sign in with the just-created credentials
-      const ok = await login(email, password);
-      if (ok) {
-        navigate('/');
+      if (mode === 'signup') {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        alert('Check your email for the confirmation link!');
       } else {
-        showToast('Sign-in failed after creating account', { type: 'error' });
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        navigate('/dashboard');
       }
-    } catch (err) {
-      showToast('Unable to create owner', { type: 'error', message: 'The server may not allow dev seeding. Ask an admin to enable it.' });
+    } catch (err: any) {
+      setError(err.message);
     } finally {
-      setSeeding(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-      <div className="w-full max-w-md bg-white shadow rounded-lg p-6 border border-slate-200">
-        <h1 className="text-xl font-semibold text-slate-900 mb-4">Sign in</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 caret-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="you@example.com"
-              autoComplete="email"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 caret-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-              placeholder="••••••••"
-              autoComplete="current-password"
-              required
-            />
-            {!import.meta.env.PROD && (
-              <p className="text-xs text-slate-500 mt-1">
-                Dev tip: Pre-seeded user is {DEV_EMAIL} / {DEV_PASSWORD}
-              </p>
-            )}
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md bg-cyan-600 text-white font-medium shadow hover:bg-cyan-700 disabled:opacity-60 transition"
-          >
-            {submitting ? 'Signing in…' : 'Sign in'}
-          </button>
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={handleCreateOwnerAndSignin}
-              disabled={seeding || submitting}
-              className="w-full inline-flex items-center justify-center px-4 py-2 rounded-md border border-slate-300 text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-60 transition"
-            >
-              {seeding ? 'Creating account…' : 'Create owner and sign in'}
-            </button>
-            <p className="text-xs text-slate-500 mt-2">
-              If sign-in fails with "Invalid user", use this to create an owner account with the email/password above.
-            </p>
-            <div className="mt-3 text-center">
-              <a
-                href="/admin-setup"
-                className="text-sm text-cyan-700 hover:text-cyan-800 underline"
-              >
-                Set up admin account instead
-              </a>
-            </div>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="w-full max-w-md space-y-8 p-8 bg-white rounded-lg shadow">
+        <h2 className="text-center text-3xl font-extrabold text-gray-900">
+          {mode === 'signin' ? 'Sign in to TreePro' : 'Create an Account'}
+        </h2>
+        
+        {error && <div className="p-3 text-sm text-red-600 bg-red-50 rounded">{error}</div>}
+
+        <form className="mt-8 space-y-6" onSubmit={handleAuth}>
+          <FormInput
+            label="Email address"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <FormInput
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? 'Processing...' : mode === 'signin' ? 'Sign In' : 'Sign Up'}
+          </Button>
         </form>
+
+        <div className="text-center text-sm">
+          <button 
+            onClick={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+            className="text-blue-600 hover:underline"
+          >
+            {mode === 'signin' ? 'Need an account? Sign Up' : 'Already have an account? Sign In'}
+          </button>
+        </div>
       </div>
     </div>
   );
-};
-
-export default Login;
+}

@@ -1,216 +1,53 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { showToast } from '../components/ui/Toast';
-
-interface User {
-  id: string;
-  email: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  profile_image_url: string | null;
-  status: string;
-  roles: string[];
-  created_at: string;
-  updated_at: string;
-}
-
-const ROLE_HIERARCHY: Record<string, number> = {
-  owner: 100,
-  admin: 90,
-  manager: 70,
-  sales: 50,
-  scheduler: 50,
-  foreman: 40,
-  laborer: 30,
-  crew: 30,
-  crew_member: 30,
-  customer: 10,
-};
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '../src/integrations/supabase/client';
 
 interface AuthContextType {
-  isAuthenticated: boolean;
-  isLoading: boolean;
+  session: Session | null;
   user: User | null;
-  userEmail: string | null;
-  userRole: string | null;
-  userRoles: string[];
-  userName: string | null;
-  hasRole: (role: string) => boolean;
-  hasAnyRole: (roles: string[]) => boolean;
-  isOwnerOrAdmin: boolean;
-  isManager: boolean;
-  isFieldCrew: boolean;
-  isCustomer: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (options: { email: string; password: string; firstName?: string; lastName?: string }) => Promise<boolean>;
-  logout: () => Promise<void>;
+  loading: boolean;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType>({
+  session: null,
+  user: null,
+  loading: true,
+  signOut: async () => {},
+});
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+export const useAuth = () => useContext(AuthContext);
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/auth/user', {
-          credentials: 'include',
-        });
-        
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-          setIsAuthenticated(true);
-        } else {
-          setUser(null);
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        setUser(null);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-    checkAuth();
+    // 2. Listen for changes (sign in, sign out)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password })
-    });
-
-    if (response.ok) {
-      const userData = await response.json();
-      setUser(userData);
-      setIsAuthenticated(true);
-      showToast('Signed in successfully', { type: 'success' });
-      return true;
-    }
-    
-    // Try to parse JSON error with a message; fallback to text
-    let errMsg: string | null = null;
-    try {
-      const data = await response.json();
-      errMsg = data?.message || null;
-    } catch {
-      try {
-        errMsg = await response.text();
-      } catch {
-        errMsg = null;
-      }
-    }
-    showToast('Sign-in failed', { type: 'error', message: errMsg || 'Invalid email or password.' });
-    return false;
+  const signOut = async () => {
+    await supabase.auth.signOut();
   };
-
-  const signup = async ({ email, password, firstName, lastName }: { email: string; password: string; firstName?: string; lastName?: string }) => {
-    const response = await fetch('/api/auth/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password, firstName, lastName })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      // When not the first user, backend returns pendingApproval=true and does NOT log in
-      if (data?.pendingApproval) {
-        showToast('Account created; pending approval', {
-          type: 'success',
-          message: 'An administrator will approve your account before you can sign in.'
-        });
-        setUser(null);
-        setIsAuthenticated(false);
-        return false;
-      }
-      // First user (auto-approved) gets a full user object and is logged in
-      setUser(data);
-      setIsAuthenticated(true);
-      showToast('Account created and signed in', { type: 'success' });
-      return true;
-    }
-    
-    // Show server-provided error message if available
-    let errMsg: string | null = null;
-    try {
-      const data = await response.json();
-      errMsg = data?.message || null;
-    } catch {
-      try {
-        errMsg = await response.text();
-      } catch {
-        errMsg = null;
-      }
-    }
-    showToast('Sign-up failed', { type: 'error', message: errMsg || 'Unable to create account.' });
-    return false;
-  };
-
-  const logout = async () => {
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include'
-    });
-    setUser(null);
-    setIsAuthenticated(false);
-  };
-
-  const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'User' : null;
-  const userEmail = user?.email || null;
-  const userRoles = user?.roles || [];
-  
-  const userRole = userRoles.length > 0 
-    ? userRoles.reduce((highest, role) => {
-        const currentLevel = ROLE_HIERARCHY[role] || 0;
-        const highestLevel = ROLE_HIERARCHY[highest] || 0;
-        return currentLevel > highestLevel ? role : highest;
-      }, userRoles[0])
-    : null;
-
-  const hasRole = (role: string): boolean => userRoles.includes(role);
-  const hasAnyRole = (roles: string[]): boolean => roles.some(role => userRoles.includes(role));
-  
-  const isOwnerOrAdmin = hasAnyRole(['owner', 'admin']);
-  const isManager = hasAnyRole(['owner', 'admin', 'manager']);
-  const isFieldCrew = hasAnyRole(['foreman', 'laborer', 'crew', 'crew_member']);
-  const isCustomer = hasRole('customer') && userRoles.length === 1;
 
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
-      isLoading, 
-      user, 
-      userEmail, 
-      userRole, 
-      userRoles,
-      userName, 
-      hasRole,
-      hasAnyRole,
-      isOwnerOrAdmin,
-      isManager,
-      isFieldCrew,
-      isCustomer,
-      login, 
-      signup, 
-      logout 
-    }}>
-      {children}
+    <AuthContext.Provider value={{ session, user, loading, signOut }}>
+      {!loading && children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
 };
