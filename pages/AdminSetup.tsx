@@ -23,8 +23,18 @@ const AdminSetup: React.FC = () => {
         body: JSON.stringify({ email, password, firstName, lastName })
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to create admin');
+        let msg: string | null = null;
+        try {
+          const data = await res.json();
+          msg = data?.message || null;
+        } catch {
+          try {
+            msg = await res.text();
+          } catch {
+            msg = null;
+          }
+        }
+        throw new Error(msg || 'Failed to create admin');
       }
       showToast('Admin account created', { type: 'success', message: 'Signing you in…' });
       const ok = await login(email, password);
@@ -35,7 +45,8 @@ const AdminSetup: React.FC = () => {
         navigate('/');
       }
     } catch (err) {
-      showToast('Admin setup failed', { type: 'error' });
+      const msg = (err as any)?.message ?? null;
+      showToast('Admin setup failed', { type: 'error', message: msg || undefined });
     } finally {
       setSubmitting(false);
     }
