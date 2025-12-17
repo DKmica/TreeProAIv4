@@ -26,6 +26,10 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@capacitor/android": "7.4.4",
+    "@capacitor/cli": "7.4.4",
+    "@capacitor/core": "7.4.4",
+    "@capacitor/ios": "7.4.4",
     "@google/genai": "^1.22.0",
     "@playwright/test": "^1.56.1",
     "@sendgrid/mail": "^8.1.6",
