@@ -189,7 +189,7 @@ export const mockJobs: Job[] = [
       id: 'job1',
       quoteId: 'quote2',
       customerName: 'Jane Smith',
-      status: 'Completed',
+      status: 'completed',
       scheduledDate: '2023-11-05',
       assignedCrew: ['emp2', 'emp3'],
       photos: [],
