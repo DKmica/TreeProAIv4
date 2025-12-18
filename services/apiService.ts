@@ -1,5 +1,59 @@
-import { Customer, Lead, Quote, QuotePricingOption, QuoteProposalData, QuoteVersion, AiAccuracyStats, Job, Invoice, Employee, Equipment, MaintenanceLog, PayPeriod, TimeEntry, PayrollRecord, CompanyProfile, EstimateFeedback, EstimateFeedbackStats, Client, Property, Contact, JobTemplate, Crew, CrewMember, CrewAssignment, FormTemplate, JobForm, RouteOptimizationResult, CrewAvailabilitySummary, WeatherImpact, DispatchResult, RecurringJobSeries, RecurringJobInstance, CustomerActivityEvent, CustomerSegment, EmailCampaignSend, NurtureSequence, WebLeadFormConfig, IntegrationConnection, IntegrationProvider, IntegrationTestResult, AiJobDurationPrediction, AiSchedulingSuggestion, AiRiskAssessment, AiQuoteRecommendation, AiWorkflowRecommendation } from '../types';
+import {
+  AiAccuracyStats,
+  AiJobDurationPrediction,
+  AiQuoteRecommendation,
+  AiRiskAssessment,
+  AiSchedulingSuggestion,
+  AiWorkflowRecommendation,
+  Client,
+  Contact,
+  Crew,
+  CrewAssignment,
+  CrewAvailabilitySummary,
+  CrewMember,
+  Customer,
+  CustomerActivityEvent,
+  CustomerSegment,
+  DispatchResult,
+  EmailCampaignSend,
+  Employee,
+  Equipment,
+  EstimateFeedback,
+  EstimateFeedbackStats,
+  FormTemplate,
+  IntegrationConnection,
+  IntegrationProvider,
+  IntegrationTestResult,
+  Invoice,
+  Job,
+  JobForm,
+  JobTemplate,
+  Lead,
+  MaintenanceLog,
+  NurtureSequence,
+  PayPeriod,
+  PayrollRecord,
+  Property,
+  Quote,
+  QuotePricingOption,
+  QuoteProposalData,
+  QuoteVersion,
+  RecurringJobInstance,
+  RecurringJobSeries,
+  RouteOptimizationResult,
+  TimeEntry,
+  WebLeadFormConfig,
+  WeatherImpact,
+  CompanyProfile
+} from '../types';
 import { PaginationParams, PaginatedResponse } from '../types/pagination';
+import { getAccessToken } from './supabaseClient';
+
+type ApiFetchOptions = RequestInit & {
+  useAuth?: boolean;
+};
+
+const DEV_FALLBACK_TOKEN = import.meta.env.VITE_DEV_AUTH_TOKEN as string | undefined;
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -16,20 +70,36 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // Generic fetch function with timeout
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {}): Promise<T> {
   const url = `/api/${endpoint}`;
   const timeout = 10000;
+  const { useAuth = true, ...rest } = options;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(rest.headers as Record<string, string> | undefined),
+  };
+
+  if (useAuth) {
+    try {
+      const accessToken = await getAccessToken();
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      } else if (import.meta.env.DEV && DEV_FALLBACK_TOKEN) {
+        headers.Authorization = `Bearer ${DEV_FALLBACK_TOKEN}`;
+      }
+    } catch (err) {
+      console.warn('Unable to read Supabase session for API request:', err);
+    }
+  }
 
   try {
     const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      ...rest,
+      headers,
       signal: controller.signal,
     });
     
@@ -120,10 +190,6 @@ export const clientService = {
 };
 export const propertyService = {
   ...createApiService<Property>('properties'),
-  getById: async (id: string): Promise<Property> => {
-    const response = await apiFetch<{ success: boolean; data: Property }>(`properties/${id}`);
-    return response.data;
-  },
   createForClient: (clientId: string, data: Partial<Omit<Property, 'id'>>): Promise<Property> => 
     apiFetch(`clients/${clientId}/properties`, { method: 'POST', body: JSON.stringify(data) }),
 };
@@ -290,53 +356,9 @@ export const quoteService = {
   getConversionAnalytics: async (): Promise<any> => {
     const response = await apiFetch<{ success: boolean; data: any }>('analytics/conversions');
     return response.data;
-  },
-  downloadPdf: async (id: string): Promise<void> => {
-    const response = await fetch(`/api/quotes/${id}/pdf`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to download PDF');
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Quote-${id.slice(0, 8)}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  },
-  sendPdf: async (id: string, email: string, subject?: string, message?: string): Promise<{ success: boolean }> => {
-    return apiFetch(`quotes/${id}/send-pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ email, subject, message }),
-    });
-  },
+  }
 };
-export const jobService = {
-  ...createApiService<Job>('jobs'),
-  downloadPdf: async (id: string): Promise<void> => {
-    const response = await fetch(`/api/jobs/${id}/pdf`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to download PDF');
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `WorkOrder-${id.slice(0, 8)}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  },
-  sendPdf: async (id: string, email: string, subject?: string, message?: string): Promise<{ success: boolean }> => {
-    return apiFetch(`jobs/${id}/send-pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ email, subject, message }),
-    });
-  },
-};
+export const jobService = createApiService<Job>('jobs');
 export const invoiceService = {
   getAll: async (): Promise<Invoice[]> => {
     const response = await apiFetch<{ success: boolean; data: Invoice[] }>('invoices');
@@ -350,27 +372,6 @@ export const invoiceService = {
     apiFetch(`invoices/${invoiceId}/payments`, { method: 'POST', body: JSON.stringify(paymentData) }),
   generatePaymentLink: (invoiceId: string): Promise<{ success: boolean; paymentLink: string }> =>
     apiFetch(`invoices/${invoiceId}/payment-link`, { method: 'POST' }),
-  downloadPdf: async (id: string): Promise<void> => {
-    const response = await fetch(`/api/invoices/${id}/pdf`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to download PDF');
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Invoice-${id.slice(0, 8)}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  },
-  sendPdf: async (id: string, email: string, subject?: string, message?: string): Promise<{ success: boolean }> => {
-    return apiFetch(`invoices/${id}/send-pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ email, subject, message }),
-    });
-  },
 };
 export const employeeService = createApiService<Employee>('employees');
 export const equipmentService = createApiService<Equipment>('equipment');
@@ -598,31 +599,6 @@ export const formService = {
     apiFetch(`job-forms/${id}/complete`, { method: 'PUT' }),
   deleteJobForm: (id: string): Promise<void> =>
     apiFetch<void>(`job-forms/${id}`, { method: 'DELETE' }),
-  seedTemplates: async (): Promise<{ inserted: FormTemplate[]; skipped: string[]; message: string }> => {
-    const response = await apiFetch<{ success: boolean; data: { inserted: FormTemplate[]; skipped: string[] }; message: string }>('form-templates/seed', { method: 'POST' });
-    return { inserted: response.data?.inserted ?? [], skipped: response.data?.skipped ?? [], message: response.message || '' };
-  },
-  downloadSubmissionPdf: async (jobFormId: string): Promise<void> => {
-    const response = await fetch(`/api/form-submissions/${jobFormId}/pdf`, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to download PDF');
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Form-${jobFormId.slice(0, 8)}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
-  },
-  sendSubmissionPdf: async (jobFormId: string, email: string, subject?: string, message?: string): Promise<{ success: boolean }> => {
-    return apiFetch(`form-submissions/${jobFormId}/send-pdf`, {
-      method: 'POST',
-      body: JSON.stringify({ email, subject, message }),
-    });
-  },
 };
 
 export const operationsService = {
@@ -808,243 +784,6 @@ export interface DashboardSummary {
 export const dashboardService = {
   getSummary: async (): Promise<DashboardSummary> => {
     const response = await apiFetch<{ success: boolean; data: DashboardSummary }>('dashboard/summary');
-    return response.data;
-  }
-};
-
-import { InvoiceTemplate } from '../types';
-
-function toSnakeCase(str: string): string {
-  return str.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
-
-function toCamelCase(str: string): string {
-  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-}
-
-function convertKeysToSnakeCase(obj: Record<string, any>): Record<string, any> {
-  const result: Record<string, any> = {};
-  for (const key of Object.keys(obj)) {
-    result[toSnakeCase(key)] = obj[key];
-  }
-  return result;
-}
-
-function convertKeysToCamelCase(obj: Record<string, any>): Record<string, any> {
-  const result: Record<string, any> = {};
-  for (const key of Object.keys(obj)) {
-    result[toCamelCase(key)] = obj[key];
-  }
-  return result;
-}
-
-export const invoiceTemplateService = {
-  getAll: async (): Promise<InvoiceTemplate[]> => {
-    const response = await apiFetch<{ success: boolean; data: any[] }>('invoice-templates');
-    return (response.data ?? []).map(item => convertKeysToCamelCase(item)) as InvoiceTemplate[];
-  },
-  getById: async (id: string): Promise<InvoiceTemplate> => {
-    const response = await apiFetch<{ success: boolean; data: any }>(`invoice-templates/${id}`);
-    return convertKeysToCamelCase(response.data) as InvoiceTemplate;
-  },
-  create: async (data: Partial<Omit<InvoiceTemplate, 'id'>>): Promise<InvoiceTemplate> => {
-    const snakeCaseData = convertKeysToSnakeCase(data as Record<string, any>);
-    const response = await apiFetch<{ success: boolean; data: any }>('invoice-templates', {
-      method: 'POST',
-      body: JSON.stringify(snakeCaseData)
-    });
-    return convertKeysToCamelCase(response.data) as InvoiceTemplate;
-  },
-  update: async (id: string, data: Partial<InvoiceTemplate>): Promise<InvoiceTemplate> => {
-    const snakeCaseData = convertKeysToSnakeCase(data as Record<string, any>);
-    const response = await apiFetch<{ success: boolean; data: any }>(`invoice-templates/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(snakeCaseData)
-    });
-    return convertKeysToCamelCase(response.data) as InvoiceTemplate;
-  },
-  remove: async (id: string): Promise<void> => {
-    await apiFetch<{ success: boolean }>(`invoice-templates/${id}`, {
-      method: 'DELETE'
-    });
-  },
-  setDefault: async (id: string): Promise<InvoiceTemplate> => {
-    const response = await apiFetch<{ success: boolean; data: any }>(`invoice-templates/${id}/set-default`, {
-      method: 'POST'
-    });
-    return convertKeysToCamelCase(response.data) as InvoiceTemplate;
-  }
-};
-
-export interface AnalyticsDateRange {
-  startDate?: string;
-  endDate?: string;
-}
-
-export interface SalesFunnelMetrics {
-  totalLeads: number;
-  qualifiedLeads: number;
-  wonLeads: number;
-  lostLeads: number;
-  totalQuotes: number;
-  sentQuotes: number;
-  acceptedQuotes: number;
-  convertedQuotes: number;
-  acceptedValue: number;
-  totalJobs: number;
-  completedJobs: number;
-  activeJobs: number;
-  leadQualificationRate: number;
-  quoteAcceptanceRate: number;
-  quoteConversionRate: number;
-}
-
-export interface JobProfitabilityItem {
-  id: string;
-  jobNumber: string;
-  customerName: string;
-  completedAt: string;
-  quoteAmount: number;
-  laborCost: number;
-  equipmentCost: number;
-  materialsCost: number;
-  disposalCost: number;
-  totalCost: number;
-  profit: number;
-  profitMargin: number;
-}
-
-export interface JobProfitabilityData {
-  jobs: JobProfitabilityItem[];
-  summary: {
-    totalJobs: number;
-    totalRevenue: number;
-    totalCosts: number;
-    totalProfit: number;
-    avgProfitMargin: number;
-  };
-}
-
-export interface CrewProductivityItem {
-  employeeId: string;
-  employeeName: string;
-  role: string;
-  totalEntries: number;
-  totalHours: number;
-  jobsWorked: number;
-  jobsCompleted: number;
-  avgHoursPerJob: number;
-}
-
-export interface CrewProductivityData {
-  employees: CrewProductivityItem[];
-  summary: {
-    totalEmployees: number;
-    totalHours: number;
-    totalJobsCompleted: number;
-    avgHoursPerEmployee: number;
-  };
-}
-
-export interface EquipmentUtilizationItem {
-  equipmentId: string;
-  equipmentName: string;
-  equipmentType: string;
-  status: string;
-  usageCount: number;
-  totalHoursUsed: number;
-  jobsUsedOn: number;
-  lastUsed: string | null;
-}
-
-export interface EquipmentUtilizationData {
-  equipment: EquipmentUtilizationItem[];
-  summary: {
-    totalEquipment: number;
-    activeEquipment: number;
-    utilizationRate: number;
-    totalHoursUsed: number;
-  };
-}
-
-export interface RevenueByServiceItem {
-  serviceType: string;
-  invoiceCount: number;
-  totalRevenue: number;
-  collectedRevenue: number;
-  collectionRate: number;
-}
-
-export interface RevenueByServiceData {
-  services: RevenueByServiceItem[];
-  summary: {
-    totalServiceTypes: number;
-    totalRevenue: number;
-    totalCollected: number;
-    overallCollectionRate: number;
-  };
-}
-
-export interface RevenueTrendItem {
-  period: string;
-  invoiceCount: number;
-  totalInvoiced: number;
-  totalPaid: number;
-}
-
-export interface DashboardKPIs {
-  newLeads: number;
-  quotesCreated: number;
-  quotesWon: number;
-  jobsCreated: number;
-  jobsCompleted: number;
-  totalInvoiced: number;
-  totalCollected: number;
-  outstandingBalance: number;
-  winRate: number;
-}
-
-export const analyticsService = {
-  getSalesFunnel: async (params?: AnalyticsDateRange): Promise<SalesFunnelMetrics> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/sales-funnel?${query}` : 'analytics/sales-funnel';
-    const response = await apiFetch<{ success: boolean; data: SalesFunnelMetrics }>(endpoint);
-    return response.data;
-  },
-  getJobProfitability: async (params?: AnalyticsDateRange): Promise<JobProfitabilityData> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/job-profitability?${query}` : 'analytics/job-profitability';
-    const response = await apiFetch<{ success: boolean; data: JobProfitabilityData }>(endpoint);
-    return response.data;
-  },
-  getCrewProductivity: async (params?: AnalyticsDateRange): Promise<CrewProductivityData> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/crew-productivity?${query}` : 'analytics/crew-productivity';
-    const response = await apiFetch<{ success: boolean; data: CrewProductivityData }>(endpoint);
-    return response.data;
-  },
-  getEquipmentUtilization: async (params?: AnalyticsDateRange): Promise<EquipmentUtilizationData> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/equipment-utilization?${query}` : 'analytics/equipment-utilization';
-    const response = await apiFetch<{ success: boolean; data: EquipmentUtilizationData }>(endpoint);
-    return response.data;
-  },
-  getRevenueByService: async (params?: AnalyticsDateRange): Promise<RevenueByServiceData> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/revenue-by-service?${query}` : 'analytics/revenue-by-service';
-    const response = await apiFetch<{ success: boolean; data: RevenueByServiceData }>(endpoint);
-    return response.data;
-  },
-  getRevenueTrend: async (params?: AnalyticsDateRange & { groupBy?: string }): Promise<RevenueTrendItem[]> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/revenue-trend?${query}` : 'analytics/revenue-trend';
-    const response = await apiFetch<{ success: boolean; data: RevenueTrendItem[] }>(endpoint);
-    return response.data;
-  },
-  getDashboardKPIs: async (params?: AnalyticsDateRange): Promise<DashboardKPIs> => {
-    const query = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
-    const endpoint = query ? `analytics/dashboard-kpis?${query}` : 'analytics/dashboard-kpis';
-    const response = await apiFetch<{ success: boolean; data: DashboardKPIs }>(endpoint);
     return response.data;
   }
 };
