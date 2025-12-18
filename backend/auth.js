@@ -18,12 +18,21 @@ const authenticatedUser = {
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseValidationKey = supabaseServiceRoleKey || supabaseAnonKey;
+
 const supabaseAdmin = supabaseUrl && supabaseServiceRoleKey
   ? createClient(supabaseUrl, supabaseServiceRoleKey)
   : null;
 
-if (!supabaseAdmin) {
-  console.warn('Supabase admin client not configured. JWT validation will fall back to AUTH_TOKEN or dev mode.');
+const supabaseAuthClient = supabaseUrl && supabaseValidationKey
+  ? createClient(supabaseUrl, supabaseValidationKey)
+  : null;
+
+if (!supabaseAuthClient) {
+  console.warn('Supabase auth client not configured. JWT validation will fall back to AUTH_TOKEN or dev mode.');
+} else if (!supabaseServiceRoleKey) {
+  console.warn('Supabase service role key not configured. Using anon key for JWT validation only; admin features will be disabled.');
 }
 
 function mapSupabaseUser(user) {
@@ -55,9 +64,9 @@ function getRequestToken(req) {
 }
 
 async function validateSupabaseToken(token) {
-  if (!supabaseAdmin || !token) return null;
+  if (!supabaseAuthClient || !token) return null;
   try {
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    const { data, error } = await supabaseAuthClient.auth.getUser(token);
     if (error || !data?.user) {
       return null;
     }
